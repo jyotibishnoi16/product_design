@@ -1,0 +1,289 @@
+---
+title: "APPENDIX- R CODE"
+output: pdf_document
+date: "2023-05-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+CONJOINT ANALYSIS USING LEAST SQUARES REGRESSION TO ESTIMATE PART WORTHS
+
+```{r load library}
+## Load Packages and Set Seed
+
+library(conjoint)
+library(data.table)
+```
+
+
+
+```{r set seed}
+set.seed(1)
+```
+
+
+```{r load profile data}
+## Read in the fractional factorial design conjoint profiles file
+
+#design <- read.csv(file.choose()) ## Choose the file named Conjoint profiles.csv
+
+design <- read.csv("profiles.csv")
+
+```
+
+
+```{r extract attributes }
+# Extract attributes with their levels into a list from design dataframe
+
+attrib.list <- list(Brand  = c("Apple", "Lenovo", "Dell", "Acer"),
+                     Hard = c("128 GB", "256 GB", "512 GB"), 
+                     RAM  = c("2 GB", "4 GB", "8 GB", "16 GB"),
+                     Screen = c("12.1 in", "15.4 in", "17.3 in"), 
+                     Price  = c ("$900","$1200", "$1500", "$2000"))
+
+```
+
+
+```{r correlation}
+## Check for correlation in fractional factorial design
+
+print(cor(caEncodedDesign(design)))
+
+```
+
+
+```{r load preference data }
+## Read in the survey preference results
+
+#pref <- read.csv(file.choose()) ## Choose the file named conjoint_preferences.csv
+
+pref <- read.csv("conjoint_preferences.csv")
+```
+
+
+```{r transpose}
+#Transpose the data
+
+pref_trans <- t(pref)
+
+# Making first row of customer number as column names
+
+colnames(pref_trans) <- pref_trans[1, ]
+
+# dropping row 1 with customer number
+
+pref_trans <- pref_trans[-1,]  
+```
+
+
+```{r partworths}
+## Set up attributes and levels as a vector 
+
+attrib.vector <- data.frame(unlist(attrib.list,use.names=FALSE))
+
+# changing column name of attrib.vector
+
+colnames(attrib.vector) <- c("levels")
+
+# creating a null matrix
+
+part.worths <- NULL
+
+# Estimate the part-worths for each respondent
+for (i in 1:ncol(pref_trans)){
+    temp <- caPartUtilities(pref_trans[,i], design, attrib.vector)
+    ## Pick the baseline case
+    ## Adjust coding as needed based on number of attributes and levels
+    ## Base Case: Profile Acer, Hard 512 GB, RAM 8 GB, Screen Size 17.3 in, Price $1,500
+    Base_Brand <- temp[,"Acer"]; Base_Hard <- temp[,"128 GB"]; Base_RAM <- temp[,"2 GB"]
+    Base_Screen <- temp[,"12.1 in"]; Base_Price <- temp[,"$900"]
+    ## Adjust Intercept
+    temp[,"intercept"] <- temp[,"intercept"] - Base_Brand - Base_Hard - Base_RAM - 
+      Base_Screen - Base_Price
+    ## Adjust Coefficients
+    ## Brand
+    L1 <- length(attrib.list$Brand) + 1 ## Add 1 for the intercept
+    for (j in 2:L1){temp[,j] <- temp[,j] - Base_Brand}
+    ## Shipping
+    L2 <- length(attrib.list$Hard) + L1
+    for (k in (L1+1):L2){temp[,k] <- temp[,k] - Base_Hard}
+    ## Restock
+    L3 <- length(attrib.list$RAM) + L2
+    for (l in (L2+1):L3){temp[,l] <- temp[,l] - Base_RAM}
+    ## Retdays
+    L4 <- length(attrib.list$Screen) + L3
+    for (m in (L3+1):L4){temp[,m] <- temp[,m] - Base_Screen}
+    ## Price
+    L5 <- length(attrib.list$Price) + L4
+    for (n in (L4+1):L5){temp[,n] <- temp[,n] - Base_Price}
+    part.worths <- rbind(part.worths, temp)
+}
+rownames(part.worths) <- colnames(pref_trans)
+
+```
+
+
+```{r View Partworths}
+pw <- head(part.worths,10)
+
+```
+
+
+```{r export}
+## Export part-worths from analysis
+
+#write.csv(part.worths, file.choose(new=TRUE), row.names = FALSE) 
+## Name the file conjoint_partworths.csv
+
+write.csv(part.worths, file= "conjoint_partworths.csv", row.names = FALSE)
+```
+
+
+```{r}
+
+```
+
+
+PERCEPTUAL MAP USING PRINCIPAL COMPONENT ANALYSIS
+
+```{r load perception data}
+## Read in perception and preference data
+
+#per <- read.csv(file.choose()) ## Choose perceptions.csv file
+per <- read.csv("perceptions.csv")
+
+```
+
+
+```{r PCA}
+## Run Princple Components Analysis on Perceptions
+
+#'[the following code prcomp() performs Principal Component Analysis]
+#'[per[,2:length(per)] selects a subset of 'per' dataset by dropping first column]
+#'[retx=TRUE returns transformed data and scale=TRUE standardise the data 
+#'[so each variable has mean 0 and std dev 1]
+#'
+pca <- prcomp(per[,2:length(per)], retx=TRUE, scale=TRUE)
+
+```
+
+
+```{r Attribute Factors}
+## Perceptual Map Data - Attribute Factors and CSV File
+
+#'[following code extracts column names from 'per' dataframe and changes 
+#'[into table with one column name Attribute]
+
+attribute <- as.data.table(colnames(per[,2:length(per)])); setnames(attribute, 1, "Attribute")
+
+#'[following code creates three objects factor1, factor 2, path]
+#'[factor 1 is created by multiplying 1st column of pca$rotation 
+#'[with first element of pca$sdev; likewise factor 2]
+#'[path is created by repeating 1 nrow(attributes) times- attribute table created above]
+
+factor1 <- pca$rotation[,1]*pca$sdev[1]; 
+factor2 <- pca$rotation[,2]*pca$sdev[2]; 
+path <- rep(1, nrow(attribute))
+
+#'[creating a new dataframe by cbinding attribute table and factor1,2 and path]
+
+pca_factors <- subset(cbind(attribute, factor1, factor2, path), 
+                      select = c(Attribute, factor1, factor2, path))
+
+#'[creating a new df by cbinding attribute table & filling 0 for col factor1,2 and path]
+
+pca_origin <- cbind(attribute, factor1 = rep(0,nrow(attribute)), 
+                    factor2 = rep(0,nrow(attribute)), path = rep(0,nrow(attribute)))
+
+#'[combining pca_factors and pca_origin by rows]
+
+pca_attributes <- rbind(pca_factors, pca_origin)
+
+# export pca_attributes for perceptual mapping
+#write.csv(pca_attributes, file = file.choose(new=TRUE), row.names = FALSE) 
+## Name file perceptions_attributes.csv
+
+write.csv(pca_attributes, file = "pca_attributes.csv", row.names = FALSE)
+```
+
+
+```{r Brand Scores}
+## Perceptual Map Data - Brand Factors and CSV File
+
+#'[following code selects first column from pca$x and apply(abs(pca$x),2,max)[1]) 
+#'#'[divide it by max absolute value of that column]
+
+score1 <- (pca$x[,1]/apply(abs(pca$x),2,max)[1])
+score2 <- (pca$x[,2]/apply(abs(pca$x),2,max)[2])
+
+#'[bind dataframe per, score1, score2 on columns by subsetting only brand column from per dataframe]
+
+pca_scores <- subset(cbind(per, score1, score2), select = c(Profile, score1, score2))
+
+# export pca_scores for perceptual mappin
+
+#write.csv(pca_scores, file = file.choose(new=TRUE), row.names = FALSE) 
+## Name file perceptions_scores.csv
+
+write.csv(pca_scores, file = "pca_scores.csv", row.names = FALSE)
+```
+
+
+```{r PCA elements}
+# Extract singular values
+singular_values <- pca$sdev
+
+# Extract Loading Factors
+loading_factors <- pca$rotation
+
+# PVE- Proportion of Variance Explained
+pve <- pca$sdev^2 / sum(pca$sdev^2)
+```
+
+
+```{r }
+# Scatterplot of loading factors of PCA1 & PCA2
+
+plot(loading_factors[,1], loading_factors[,2], xlab="PC1", ylab="PC2", xlim=c(-1,1), ylim=c(-1,1))
+text(loading_factors[,1], loading_factors[,2], labels=colnames(per), pos=3)
+```
+
+```{r }
+# Plot of Cumulative PVE
+
+plot(cumsum(pve), xlab="Principal Component", ylab="Cumulative Proportion of Variance Explained")
+
+```
+
+```{r }
+# perceptual map between PCA 1 & PCA 2
+
+plot(pca$x[,1], pca$x[,2], xlab="PC1", ylab="PC2", xlim=c(-4,4), ylim=c(-4,4), pch=16)
+text(pca$x[,1], pca$x[,2], labels=row.names(per), pos=3)
+```
+
+```{r Scree plot}
+# Create a scree plot
+
+plot(pca, type = "l", main = "Scree Plot")
+
+```
+
+```{r PVE plot}
+# Calculate the proportion of variance explained by each PC
+
+prop_var <- pca$sdev^2 / sum(pca$sdev^2)
+
+# Calculate the cumulative proportion of variance explained
+
+cum_prop_var <- cumsum(prop_var)
+
+# Create a cumulative variance plot
+
+plot(cum_prop_var, type = "b", xlab = "Number of PCs", ylab = "Cumulative Proportion of Variance", 
+     main = "Cumulative Variance Plot")
+```
+
