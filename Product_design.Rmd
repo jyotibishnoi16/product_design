@@ -1,11 +1,6 @@
 ---
-title: "APPENDIX- R CODE"
-output: pdf_document
-date: "2023-05-02"
----
+title: "PRODUCT DESIGN"
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
@@ -18,22 +13,18 @@ library(conjoint)
 library(data.table)
 ```
 
-
-
 ```{r set seed}
 set.seed(1)
 ```
 
-
 ```{r load profile data}
 ## Read in the fractional factorial design conjoint profiles file
 
-#design <- read.csv(file.choose()) ## Choose the file named Conjoint profiles.csv
+#design <- read.csv(file.choose()) 
 
 design <- read.csv("profiles.csv")
 
 ```
-
 
 ```{r extract attributes }
 # Extract attributes with their levels into a list from design dataframe
@@ -46,14 +37,12 @@ attrib.list <- list(Brand  = c("Apple", "Lenovo", "Dell", "Acer"),
 
 ```
 
-
 ```{r correlation}
 ## Check for correlation in fractional factorial design
 
 print(cor(caEncodedDesign(design)))
 
 ```
-
 
 ```{r load preference data }
 ## Read in the survey preference results
@@ -62,7 +51,6 @@ print(cor(caEncodedDesign(design)))
 
 pref <- read.csv("conjoint_preferences.csv")
 ```
-
 
 ```{r transpose}
 #Transpose the data
@@ -77,7 +65,6 @@ colnames(pref_trans) <- pref_trans[1, ]
 
 pref_trans <- pref_trans[-1,]  
 ```
-
 
 ```{r partworths}
 ## Set up attributes and levels as a vector 
@@ -122,16 +109,11 @@ for (i in 1:ncol(pref_trans)){
     part.worths <- rbind(part.worths, temp)
 }
 rownames(part.worths) <- colnames(pref_trans)
-
 ```
-
-
 ```{r View Partworths}
 pw <- head(part.worths,10)
 
 ```
-
-
 ```{r export}
 ## Export part-worths from analysis
 
@@ -140,13 +122,9 @@ pw <- head(part.worths,10)
 
 write.csv(part.worths, file= "conjoint_partworths.csv", row.names = FALSE)
 ```
-
-
 ```{r}
 
 ```
-
-
 PERCEPTUAL MAP USING PRINCIPAL COMPONENT ANALYSIS
 
 ```{r load perception data}
@@ -156,8 +134,6 @@ PERCEPTUAL MAP USING PRINCIPAL COMPONENT ANALYSIS
 per <- read.csv("perceptions.csv")
 
 ```
-
-
 ```{r PCA}
 ## Run Princple Components Analysis on Perceptions
 
@@ -169,8 +145,6 @@ per <- read.csv("perceptions.csv")
 pca <- prcomp(per[,2:length(per)], retx=TRUE, scale=TRUE)
 
 ```
-
-
 ```{r Attribute Factors}
 ## Perceptual Map Data - Attribute Factors and CSV File
 
@@ -208,8 +182,6 @@ pca_attributes <- rbind(pca_factors, pca_origin)
 
 write.csv(pca_attributes, file = "pca_attributes.csv", row.names = FALSE)
 ```
-
-
 ```{r Brand Scores}
 ## Perceptual Map Data - Brand Factors and CSV File
 
@@ -230,8 +202,6 @@ pca_scores <- subset(cbind(per, score1, score2), select = c(Profile, score1, sco
 
 write.csv(pca_scores, file = "pca_scores.csv", row.names = FALSE)
 ```
-
-
 ```{r PCA elements}
 # Extract singular values
 singular_values <- pca$sdev
@@ -242,8 +212,6 @@ loading_factors <- pca$rotation
 # PVE- Proportion of Variance Explained
 pve <- pca$sdev^2 / sum(pca$sdev^2)
 ```
-
-
 ```{r }
 # Scatterplot of loading factors of PCA1 & PCA2
 
@@ -257,7 +225,6 @@ text(loading_factors[,1], loading_factors[,2], labels=colnames(per), pos=3)
 plot(cumsum(pve), xlab="Principal Component", ylab="Cumulative Proportion of Variance Explained")
 
 ```
-
 ```{r }
 # perceptual map between PCA 1 & PCA 2
 
@@ -267,11 +234,8 @@ text(pca$x[,1], pca$x[,2], labels=row.names(per), pos=3)
 
 ```{r Scree plot}
 # Create a scree plot
-
 plot(pca, type = "l", main = "Scree Plot")
-
 ```
-
 ```{r PVE plot}
 # Calculate the proportion of variance explained by each PC
 
